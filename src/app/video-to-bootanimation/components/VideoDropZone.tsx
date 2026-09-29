@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { formatBytes } from "../utils/frameUtils";
 
 interface Props {
@@ -9,11 +9,45 @@ interface Props {
   duration: number;
   videoRef: React.RefObject<HTMLVideoElement>;
   onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDropFile?: (file: File) => void;
   onLoaded: () => void;
 }
 
-export default function VideoDropZone({ videoFile, videoUrl, duration, videoRef, onSelect, onLoaded }: Props) {
+export default function VideoDropZone({ videoFile, videoUrl, duration, videoRef, onSelect, onDropFile, onLoaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile && (droppedFile.type.includes("video") || droppedFile.name.match(/\.(mp4|webm|mov|mkv)$/i))) {
+      if (onDropFile) {
+        onDropFile(droppedFile);
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      inputRef.current?.click();
+    }
+  };
 
   return (
     <div className="glass-panel border rounded-2xl p-5 space-y-4 shadow-sm bg-white/70 dark:bg-neutral-950/70">
@@ -23,21 +57,32 @@ export default function VideoDropZone({ videoFile, videoUrl, duration, videoRef,
 
       {/* Drop zone */}
       <div
-        className="relative border-2 border-dashed border-neutral-300 dark:border-neutral-800 hover:border-cyan-400 dark:hover:border-cyan-400/80 rounded-xl p-8 text-center cursor-pointer transition-all bg-white/50 dark:bg-black/50 hover:scale-[1.01] group"
+        role="button"
+        tabIndex={0}
+        aria-label="Upload video file"
+        className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all bg-white/50 dark:bg-black/50 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-cyan-400 group ${
+          isDragging
+            ? "border-cyan-400 bg-cyan-500/10 scale-[1.01]"
+            : "border-neutral-300 dark:border-neutral-800 hover:border-cyan-400 dark:hover:border-cyan-400/80"
+        }`}
         onClick={() => inputRef.current?.click()}
+        onKeyDown={handleKeyDown}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <input
           ref={inputRef}
           type="file"
-          accept="video/mp4,video/webm"
+          accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
           onChange={onSelect}
           className="hidden"
         />
-        <div className="text-2xl mb-2">🎬</div>
+        <div className="text-2xl mb-2">{isDragging ? "📥" : "🎬"}</div>
         <div className="text-xs text-neutral-500 dark:text-neutral-400 group-hover:text-white transition-colors">
-          Click to select{" "}
+          {isDragging ? "Drop your video here" : "Click or drag & drop to select"}{" "}
           <code className="font-mono bg-neutral-100 dark:bg-neutral-900 px-1 rounded border border-neutral-200 dark:border-neutral-850">
-            .mp4 / .webm
+            .mp4 / .webm / .mov
           </code>
         </div>
       </div>
